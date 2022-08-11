@@ -129,4 +129,4 @@ dmypy.json
 .pyre/
 
 # testing working
-test_connection.py
+tina_test/
