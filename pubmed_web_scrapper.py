@@ -7,35 +7,69 @@ import pandas as pd
 from sys import exit
 from bs4 import BeautifulSoup
 
+
 ##
 # web_scrap code adapted from 'ScrapPaper' by M. R. Rafsanjani, Completed on 2022 Feb 13th, Penang, Malaysia.
 # Modifications made by iLab1 'Safety First' - MDSI Spring 2022
 ##
 def wait():
-	print("Waiting for a few secs...")
-	time.sleep(random.randrange(1, 6))
-	print("Waiting done. Continuing...\n")
+    print("Waiting for a few secs...")
+    time.sleep(random.randrange(1, 6))
+    print("Waiting done. Continuing...\n")
+
+
 # ===== GETTING AND SETTING THE URL =====
 
-URL_ori = "https://pubmed.ncbi.nlm.nih.gov/?term=Construction+Health+Safety"
+###########
+# William's attempt to use a list with fstrings to dynamically update the URL with keyword search terms
+# Variant 1 - cycle through a list of keywords
+# Variant 2 - Ask user through input to see what they would like to search
+
+# Variant 1
+import random
+
+# below words are based on 'buckets' identified through research
+topic = "construction"
+bucket2 = ["health", "safety", "OHS", "accident"]
+bucket3 = ["stress", "absentee", "illness", "sick"]
+bucket4 = ["hazard", "injury", "risk", "joint", "prevent", "fatal"]
+
+word2 = random.choice(bucket2)
+word3 = random.choice(bucket3)
+word4 = random.choice(bucket4)
+
+final_search = f"{topic}+{word2}+{word3}+{word4}"
+
+# Variant 2
+keyword1, keyword2, keyword3 = input("Enter 3 search terms separated by a space: ").split()
+print("Keyword 1:", keyword1)
+print("Keyword 2:", keyword2)
+print("Keyword 3:", keyword3)
+
+search_string = f"{keyword1}+{keyword2}+{keyword3}"
+
+# URL_ori = f"https://pubmed.ncbi.nlm.nih.gov/?term={final_search}" -- UNCOMMENT TO USE VARIANT 1
+URL_ori = f"https://pubmed.ncbi.nlm.nih.gov/?term={search_string}"
 headers = requests.utils.default_headers()
 headers.update({
     'User-Agent': 'Mozilla/15.0 (X11; Ubuntu; Linux x86_64; rv:52.0) Gecko/20210916 Firefox/95.0',
 })
 
+#########
+
+
 try:
 
     # SETTING UP THE CSV FILE
 
-    outfile = open("pubmed_data.csv","w",newline='',encoding='utf-8')
+    outfile = open("pubmed_data.csv", "w", newline='', encoding='utf-8')
     writer = csv.writer(outfile)
-    df = pd.DataFrame(columns=['Title','Journal','Abstract'])
+    df = pd.DataFrame(columns=['Title', 'Journal', 'Abstract'])
 
     # SETTING & GETTING PAGE NUMBER
     page_num = 1
-    page_view = 20 # can be change to 10, 20, 50, 100 or 200
+    page_view = 20  # can be change to 10, 20, 50, 100 or 200
     URL_edit = URL_ori + "&page=" + str(page_num) + "&size=" + str(page_view) + "&format=abstract"
-    
 
     page = requests.get(URL_edit, headers=headers, timeout=None)
     soup = BeautifulSoup(page.content, "html.parser")
@@ -54,18 +88,18 @@ except AttributeError:
 
 wait()
 
-	# EXTRACTING INFORMATION
+# EXTRACTING INFORMATION
 
 # for i in range(page_total_num):       ## iterates through all pages
 
 
 i = 0
 while i < 1:
-    i = i +1
+    i = i + 1
     page_num_up = page_num + i
     URL_edit = URL_ori + "&page=" + str(page_num_up) + "&size=" + str(page_view) + "&format=abstract"
     print("URL : ", URL_edit)
-    page = requests.get(URL_edit, headers=headers, timeout=None)	
+    page = requests.get(URL_edit, headers=headers, timeout=None)
 
     soup = BeautifulSoup(page.content, "html.parser")
     wait()
@@ -87,18 +121,19 @@ try:
 
         title_element_clean = title_element.a.text.strip()
         journal_element_clean = journal_element['title']
-        abstract_element_clean = abstract_element.get_text().strip().replace('\n',' ').replace('\t',' ')
-        
+        abstract_element_clean = abstract_element.get_text().strip().replace('\n', ' ').replace('\t', ' ')
+
         ## test print
         # print(title_element_clean)
         # print(journal_element_clean)
         # print(abstract_element_clean)
-        
+
         print("saving article")
 
         # exit()      # stop code for testing
 
-        df2 = pd.DataFrame([[title_element_clean, journal_element_clean, abstract_element_clean]],columns=['Title','Journal','Abstract'])
+        df2 = pd.DataFrame([[title_element_clean, journal_element_clean, abstract_element_clean]],
+                           columns=['Title', 'Journal', 'Abstract'])
         df = pd.concat([df, df2], ignore_index=True)
 
     wait()
