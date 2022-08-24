@@ -64,7 +64,7 @@ filter_years = f"years.{start_year}-{end_year}"
 URL_ori = f"https://pubmed.ncbi.nlm.nih.gov/?term={search_string}&filter={filter_years}"
 headers = requests.utils.default_headers()
 headers.update({
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/104.0.0.0 Safari/537.36'
+    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 12_5_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/104.0.0.0 Safari/537.36'
         #'Mozilla/15.0 (X11; Ubuntu; Linux x86_64; rv:52.0) Gecko/20210916 Firefox/95.0',
 })
 
