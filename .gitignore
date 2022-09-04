@@ -130,3 +130,7 @@ dmypy.json
 
 text_mine/Progress_notes
 text_mine/NotInUSE.ipynb
+text_mine_output/news_data_9600_df_merge_list.csv
+tina_test/news_data_9600.csv
+tina_test/output_5000_construction.csv
+tina_test/output_9000_aged_care.csv
