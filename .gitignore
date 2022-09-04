@@ -127,4 +127,6 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
-.idea/
+
+text_mine/Progress_notes
+text_mine/NotInUSE.ipynb
