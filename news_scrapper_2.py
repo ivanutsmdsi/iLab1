@@ -13,8 +13,9 @@ news_df = pd.DataFrame(columns=['Title','Source','Published'])
 # save dataframe to output file
 ##
 def save_to_csv():
-    save_csv = open("news_output.csv","w",newline='',encoding='utf-8')
-    news_df.to_csv('news_output.csv')
+    global news_df
+    save_csv = open("gnews_output.csv","w",newline='',encoding='utf-8')
+    news_df.to_csv('gnews_output.csv')
     save_csv.close()
     return
 
@@ -22,13 +23,17 @@ def save_to_csv():
 # returns the pandaframe
 ##
 def get_df():
+    global news_df
     return news_df
 
 ##
 # Save the entries in a feed object to the main news_df dataframe, appending to previous entries
 ##
 def parse_feed_to_df(feed):
-
+    global news_df
+    
+    # print('num of entries retrieved: ' + str(len(feed['entries']))) 
+    
     for entry in feed['entries']:
         title = entry['title']
         source = entry['source']['title']
@@ -43,16 +48,18 @@ def parse_feed_to_df(feed):
 # return the feed object
 ##
 
-def get_feed(query, start, after):
-    params = query + '+before:' + start + '+after:' + after
+def get_feed(query, before, after):
+    params = query + '+before:' + before + '+after:' + after
     addr = 'https://news.google.com/rss/search?q=' + params
-    feed = feedparser.feed(addr)
+    feed = feedparser.parse(addr)
     return feed
 
 ##
 # Analyse the arguments returned and then build a search pattern against Google News RSS feed
 ##
-def search_news(q, lm = False, m = False, d_range = False, before = None, after = None):
+def get_news(q, lm = False, m = False, d_range = False, before = None, after = None):
+    global news_df
+
     ## if no search range provided, default to last month
     if (m is False and d_range is False):
         lm = True
@@ -62,11 +69,16 @@ def search_news(q, lm = False, m = False, d_range = False, before = None, after 
         range = get_prev_month()
     elif(m):
         range = get_curr_month()
+    ## TODO: search by custom date range -- requires recurising through before and after
     elif(d_range):
         range = {'start': after, 'end': before}
 
 
-    
+    ## Version 1: assume that every search request is 1 month long
+    print('Requesting search results from google news (1 of 1)...')
+    feed = get_feed(query = q, before = range['end'], after = range['start'])   ## Execute one get request
+    parse_feed_to_df(feed)                                                      ## parse feed into news_df
+
     return
 
 ##
@@ -75,7 +87,7 @@ def search_news(q, lm = False, m = False, d_range = False, before = None, after 
 def invalid_args(error):
     match error:
         case 1:
-            print("Not enough arguments found, refer to documentation for guidance.")
+            print("Not enough arguments found, call 'news_scrapper_2.py --help' for guidance.")
         case 2:
             print("cannot use -lm (last month) or -m (current month) or -before & -after together. Refer to documentation for guidance.")
         case 3:
@@ -113,6 +125,8 @@ def main():
     #   -csv    save results to csv file                    || acts as default if no save option set (TODO: apply db save as default)
     args = sys.argv[1:]                                     ## replace sys.argv with argparse
     d_range = False                                         ## flag for search by date range
+
+    print('[Begin Google News article title extraction]')
 
     ## collect arguments
     parser = argparse.ArgumentParser()
@@ -154,16 +168,21 @@ def main():
 
     ## TODO: read query from either csv or argument
     # Check if a search query has been provided
-    if (pa.o is not None):
+    if (pa.query_csv_file is not None):
         print("Search query input by csv file not implemented yet. Please use -q")
         return
-    elif (pa.q is None):
+    elif (pa.query_param is None):
         print("Search query required.")
         return
 
     ## after checking arguments are valid, pass arguments to search_news to build feed query
-    search_news(lm = pa.lm, m = pa.m, d_range = d_range, before = pa.before, after = pa.after, q = pa.q)
+    get_news(lm = pa.lm, m = pa.m, d_range = d_range, before = pa.before, after = pa.after, q = pa.query_param)
 
+
+    ## Save results
+
+    ## Version 1: save to csv
+    save_to_csv()
 
 ## Execute main
 if __name__ == "__main__":
