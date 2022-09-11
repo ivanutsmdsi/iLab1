@@ -173,7 +173,10 @@ def main():
     
     pa = parser.parse_args()
     
-    
+    ##
+    #   Part 1:
+    #   Validate arguments and return error messages as required
+    ## 
     if len(args) == 0:
         invalid_args(1)
         return
@@ -208,11 +211,16 @@ def main():
         print("Search query required.")
         return
 
-    ## after checking arguments are valid, pass arguments to search_news to build feed query
+    ##
+    #   Part 2:
+    #   after checking arguments are valid, pass arguments to search_news to build feed query
+    ## 
     get_news(lm = pa.lm, m = pa.m, d_range = d_range, before = pa.before, after = pa.after, q = pa.query_param)
 
-
-    ## Save results
+    ##
+    #   Part 3:
+    #   Save output to either DB or CSV
+    ## 
 
     ## Version 1: save to csv
     save_to_csv()
