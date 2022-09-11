@@ -2,6 +2,7 @@ import argparse
 import feedparser
 import pandas as pd
 import sys
+import time
 from datetime import datetime
 from datetime import date
 import dateutil.relativedelta
@@ -17,6 +18,7 @@ def save_to_csv():
     save_csv = open("gnews_output.csv","w",newline='',encoding='utf-8')
     news_df.to_csv('gnews_output.csv')
     save_csv.close()
+    print("Google news search results saved to 'gnews_output.csv'")
     return
 
 ##
@@ -49,8 +51,9 @@ def parse_feed_to_df(feed):
 ##
 
 def get_feed(query, before, after):
-    params = query + '+before:' + before + '+after:' + after
-    addr = 'https://news.google.com/rss/search?q=' + params
+    params = 'q=' + query + '+before:' + before.strftime('%Y-%m-%d') + '+after:' + after.strftime('%Y-%m-%d')
+    print(params)
+    addr = 'https://news.google.com/rss/search?' + params
     feed = feedparser.parse(addr)
     return feed
 
@@ -59,6 +62,7 @@ def get_feed(query, before, after):
 ##
 def get_news(q, lm = False, m = False, d_range = False, before = None, after = None):
     global news_df
+    print('[Begin Google News article title extraction]')
 
     ## if no search range provided, default to last month
     if (m is False and d_range is False):
@@ -69,17 +73,48 @@ def get_news(q, lm = False, m = False, d_range = False, before = None, after = N
         range = get_prev_month()
     elif(m):
         range = get_curr_month()
-    ## TODO: search by custom date range -- requires recurising through before and after
-    elif(d_range):
-        range = {'start': after, 'end': before}
+    
+    ## Type A: search once
+    if(d_range is False):
+        print('Requesting search results from google news (1 of 1)...      ', end = '')
+        feed = get_feed(query = q, before = range['end'], after = range['start'])   ## Execute one get request
+        parse_feed_to_df(feed)                                                      ## parse feed into news_df
 
+    ## Type B: iterate through searches until date is reached
+    elif(d_range is True):
+        r = dateutil.relativedelta.relativedelta(before.replace(day = 1), after.replace(day = 1))
+        months = (r.months + 1) + (r.years * 12)
+        c_month = 1
+        
+        ## set dates
+        d_before = before
+        d_after = before.replace(day = 1)
 
-    ## Version 1: assume that every search request is 1 month long
-    print('Requesting search results from google news (1 of 1)...')
-    feed = get_feed(query = q, before = range['end'], after = range['start'])   ## Execute one get request
-    parse_feed_to_df(feed)                                                      ## parse feed into news_df
+        ## if start date is earlier than requested. Set start date to requested date
+        if (d_after < after):
+            d_after = after
+
+        ## search by months
+        while(d_before >= after):
+            print("Requesting search results from google news (" + str(c_month) + " of " + str(months) + ")...      ", end = '')
+            get_news_by_month(d_before, d_after, q)
+
+            ##go to the previous month
+            prev_month = get_prev_month(d_after)
+            d_before = d_after - dateutil.relativedelta.relativedelta(days=1)
+            d_after = datetime.strptime(prev_month['start'], "%Y-%m-%d %H:%M:%S")
+            ## if start date is earlier than requested. Set start date to requested date
+            if (d_after < after):
+                d_after = after
+            ## change the month count
+            c_month += 1
+            time.sleep(6)
 
     return
+
+def get_news_by_month(b, a, q):
+        feed = get_feed(query = q, before = b, after = a)   ## Execute one get request
+        parse_feed_to_df(feed)                                                      ## parse feed into news_df
 
 ##
 #   Print error statments for invalid argument combinations
@@ -125,8 +160,6 @@ def main():
     #   -csv    save results to csv file                    || acts as default if no save option set (TODO: apply db save as default)
     args = sys.argv[1:]                                     ## replace sys.argv with argparse
     d_range = False                                         ## flag for search by date range
-
-    print('[Begin Google News article title extraction]')
 
     ## collect arguments
     parser = argparse.ArgumentParser()
