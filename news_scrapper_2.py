@@ -52,10 +52,26 @@ def get_feed(query, start, after):
 ##
 # Analyse the arguments returned and then build a search pattern against Google News RSS feed
 ##
-def search_news(query, start, after):
+def search_news(q, lm = False, m = False, d_range = False, before = None, after = None):
+    ## if no search range provided, default to last month
+    if (m is False and d_range is False):
+        lm = True
 
+    ## Set date range                               ## at least one of these must be true (lm is default option)
+    if(lm):
+        range = get_prev_month()
+    elif(m):
+        range = get_curr_month()
+    elif(d_range):
+        range = {'start': after, 'end': before}
+
+
+    
     return
 
+##
+#   Print error statments for invalid argument combinations
+##
 def invalid_args(error):
     match error:
         case 1:
@@ -67,15 +83,26 @@ def invalid_args(error):
     return
 
 ##
-#   Based on today's date. get the start date of last month to the start of this month (for date building)
+#   Based on the input date. get the start date of last month to the start of this month (for date building)
+#   if no date provided, use today's date
 #   Return the dates as strings in a len 2 array
 ##
-def get_prev_month():
-    today = date.today()
-    end = today.replace(day=1)
+def get_prev_month(date = date.today()):
+    end = date.replace(day=1)
     start = end - dateutil.relativedelta.relativedelta(months=1)
 
-    return [str(start),str(end)]
+    return {'start': str(start), 'end': str(end)}
+
+##
+#   Based on the input date. get the start date of the current month to the start of next month (for date building)
+#   if no date provided, use today's date
+#   Return the dates as strings in a len 2 array
+##
+def get_curr_month(date = date.today()):
+    start = date.replace(day=1)
+    end = start + dateutil.relativedelta.relativedelta(months=1)
+
+    return {'start': str(start), 'end': str(end)}
 
 def main():
     #arg definitions:
