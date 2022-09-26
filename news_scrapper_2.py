@@ -51,7 +51,8 @@ def parse_feed_to_df(feed):
 ##
 
 def get_feed(query, before, after):
-    params = 'q=' + query + '+before:' + before.strftime('%Y-%m-%d') + '+after:' + after.strftime('%Y-%m-%d')
+    query = query.replace(" ", "%20")
+    params = 'q=' + query + '+before:' + before + '+after:' + after
     print(params)
     addr = 'https://news.google.com/rss/search?' + params
     feed = feedparser.parse(addr)
