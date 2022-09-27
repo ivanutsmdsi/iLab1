@@ -4,12 +4,19 @@ import pandas as pd
 import sys
 import math
 import time
+import csv
 from datetime import datetime
 from datetime import date
+from os.path import exists
+from os.path import basename
 import dateutil.relativedelta
 
 ## init a blank pandas df shell to append results to
-abs_df = pd.DataFrame(columns=['journal','published','title', 'abstract'])
+abs_df = pd.DataFrame(columns=['journal','published','title', 'abstract', 'source', 'label', 'query_date', 'query pattern'])
+query_date = datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
+query_patttern = ""
+source = basename(__file__)
+label = "custom query"
 
 ##
 # save dataframe to output file
@@ -34,6 +41,10 @@ def get_df():
 ##
 def parse_response_to_df(docs):
     global abs_df
+    global label
+    global source
+    global query_patttern
+    global query_date
     
     
     for article in docs:
@@ -41,7 +52,7 @@ def parse_response_to_df(docs):
         journal = article['journal']
         published = article['publication_date']
         abstract = article['abstract']
-        df2 = pd.DataFrame([[journal, published, title, abstract]],columns=['journal','published','title', 'abstract'])
+        df2 = pd.DataFrame([[journal, published, title, abstract, source, label, query_date, query_patttern]],columns=['journal','published','title', 'abstract', 'source', 'label', 'query_date', 'query pattern'])
         abs_df = pd.concat([abs_df, df2], ignore_index=True)
 
     return
@@ -112,7 +123,7 @@ def extract_abstracts(q, lm = False, m = False, d_range = False, before = None, 
 
     results = len(response['response']['docs'])
     while (currPage < numPages):
-        print('Extracting article search results from PLOS (' + str(currPage + 1) + ' of '+ str(numPages) + ')..      ', end = '')
+        print('Extracting article search results from PLOS (' + str(currPage + 1) + ' of '+ str(numPages) + ')..      ')
 
         ## analyse response first
         parse_response_to_df(response['response']['docs'])
@@ -169,6 +180,39 @@ def get_curr_month(date = date.today()):
 
     return {'start': str(start), 'end': str(end)}
 
+
+##
+#   read search query from csv file
+#
+#
+##
+def extract_abstracts_by_filequery(filename, lm = False, m = False, d_range = False, before = None, after = None):
+    global query_patttern
+    global label
+
+    if (exists(filename) is False):
+        sys.exit("'" + filename + "' could not be found.")
+    
+    scriptname = basename(__file__)
+
+    with open(filename, 'r') as file:
+        reader = csv.reader(file)
+        for row in reader:
+            if (row[0] == scriptname):
+                label = row[1]
+                query_patttern = row[2]
+                extract_abstracts(lm = lm, 
+                            m = m, 
+                            d_range = d_range, 
+                            before = before, 
+                            after = after, 
+                            q = query_patttern)
+
+            
+    # print(df.to_string()) 
+    return
+
+
 def main():
     #arg definitions:
     #   -lm     search range is last month                  || acts as default if no date range set
@@ -178,6 +222,7 @@ def main():
     #   -csv    save results to csv file                    || acts as default if no save option set (TODO: apply db save as default)
     args = sys.argv[1:]                                     ## replace sys.argv with argparse
     d_range = False                                         ## flag for search by date range
+    global query_patttern
 
     ## collect arguments
     parser = argparse.ArgumentParser()
@@ -223,25 +268,48 @@ def main():
     ## TODO: read query from either csv or argument
     # Check if a search query has been provided
     if (pa.query_csv_file is not None):
-        print("Search query input by csv file not implemented yet. Please use -q")
+        ##
+        #   Part 2:
+        #   if 
+        ## 
+        extract_abstracts_by_filequery(filename = pa.query_csv_file, 
+                                        lm = pa.lm, 
+                                        m = pa.m, 
+                                        d_range = d_range, 
+                                        before = pa.before, 
+                                        after = pa.after)
+        ##
+        #   Part 3:
+        #   Save output to either DB or CSV
+        ## 
+        save_to_csv()
         return
-    elif (pa.query_param is None):
+
+    elif (pa.query_param is not None):
+        ##
+        #   Part 2:
+        #   after checking arguments are valid, pass arguments to extract_abstracts to build feed query
+        ## 
+        query_patttern = pa.query_param
+        extract_abstracts(lm = pa.lm, 
+                            m = pa.m, 
+                            d_range = d_range, 
+                            before = pa.before, 
+                            after = pa.after, 
+                            q = pa.query_param)
+
+        ##
+        #   Part 3:
+        #   Save output to either DB or CSV
+        ## 
+        save_to_csv()
+        return
+
+    else:
         print("Search query required.")
         return
 
-    ##
-    #   Part 2:
-    #   after checking arguments are valid, pass arguments to extract_abstracts to build feed query
-    ## 
-    extract_abstracts(lm = pa.lm, m = pa.m, d_range = d_range, before = pa.before, after = pa.after, q = pa.query_param)
-
-    ##
-    #   Part 3:
-    #   Save output to either DB or CSV
-    ## 
-
-    ## Version 1: save to csv
-    save_to_csv()
+    
 
 ## Execute main
 if __name__ == "__main__":
