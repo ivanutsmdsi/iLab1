@@ -28,10 +28,8 @@ def save_to_csv():
 
     folder = "scrapper_output/"
     filename = "output_" + query_date + ".csv"
-    save_csv = open(filename,"w",newline='',encoding='utf-8')
     abs_df.to_csv(folder + filename)
-    save_csv.close()
-
+    
     print("PLOS search results saved to " + filename)
     return
 
