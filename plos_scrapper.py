@@ -29,7 +29,7 @@ def save_to_csv():
     folder = "scrapper_output/"
     filename = "output_" + query_date + ".csv"
     abs_df.to_csv(folder + filename)
-    
+
     print("PLOS search results saved to " + filename)
     return
 
@@ -70,10 +70,12 @@ def parse_response_to_df(docs):
 ##
 
 def get_plos_results(query, before, after,start_row = 1):
+    global query_patttern
     # (publication_date:[2022-08-01T00:00:00Z TO 2022-08-31T23:59:59Z]) AND (construction+health+safety)
     pub_param = '(publication_date:[' + after + 'T00:00:00Z' + ' TO ' + before + 'T00:00:00Z' + '])'
     join_param = ' AND '
     query_param = '(' + query + ')' + join_param + pub_param
+    query_patttern = query_param
 
     fields_param = '&fl=id,title,abstract,publication_date,journal'
 
@@ -216,8 +218,17 @@ def extract_abstracts_by_filequery(filename, lm = False, m = False, d_range = Fa
 
             
     # print(df.to_string()) 
+    save_to_csv()
     return
 
+def extract_abstracts_and_save(lm, m, d_range, before, after, q):
+    global query_patttern
+    query_patttern = q
+    extract_abstracts(lm = lm, m = m, d_range = d_range, before = before, after = after, q = q)
+
+    save_to_csv()
+
+    return
 
 def main():
     #arg definitions:
@@ -279,11 +290,6 @@ def main():
                                         d_range = d_range, 
                                         before = pa.before, 
                                         after = pa.after)
-        ##
-        #   Part 3:
-        #   Save output to either DB or CSV
-        ## 
-        save_to_csv()
         return
 
     elif (pa.query_param is not None):
@@ -291,19 +297,13 @@ def main():
         #   Part 2:
         #   after checking arguments are valid, pass arguments to extract_abstracts to build feed query
         ## 
-        query_patttern = pa.query_param
-        extract_abstracts(lm = pa.lm, 
+        extract_abstracts_and_save(lm = pa.lm, 
                             m = pa.m, 
                             d_range = d_range, 
                             before = pa.before, 
                             after = pa.after, 
                             q = pa.query_param)
 
-        ##
-        #   Part 3:
-        #   Save output to either DB or CSV
-        ## 
-        save_to_csv()
         return
 
     else:

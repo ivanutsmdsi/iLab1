@@ -10,6 +10,7 @@ from os.path import exists
 from os.path import basename
 import dateutil.relativedelta
 
+
 ## init a blank pandas df shell to append results to
 news_df = pd.DataFrame(columns=['source','published','title', 'abstract', 'type', 'scrapper', 'label', 'query_date', 'query_pattern'])
 query_date = datetime.now().strftime("%Y%m%dT%H%M%S")
@@ -29,7 +30,7 @@ def save_to_csv():
     folder = "scrapper_output/"
     filename = "output_" + query_date + ".csv"
     news_df.to_csv(folder + filename)
-    
+
     print("Google news search results saved to " + filename)
     return
 
@@ -70,8 +71,11 @@ def parse_feed_to_df(feed):
 ##
 
 def get_feed(query, before, after):
+    global query_patttern
     query = query.replace(" ", "%20")
     params = 'q=' + query + '+before:' + before + '+after:' + after
+    query_patttern = params
+
     print(params)
     addr = 'https://news.google.com/rss/search?' + params
     feed = feedparser.parse(addr)
@@ -198,7 +202,17 @@ def get_news_by_filequery(filename, lm = False, m = False, d_range = False, befo
                             q = query_patttern)
 
             
-    # print(df.to_string()) 
+    # print(df.to_string())
+    save_to_csv() 
+    return
+
+def get_news_and_save(lm, m, d_range, before, after, q):
+    global query_patttern
+
+    query_patttern = q
+    get_news(lm = lm, m = m, d_range = d_range, before = before, after = after, q = q)
+    
+    save_to_csv()
     return
 
 def main():
@@ -261,7 +275,7 @@ def main():
                                         d_range = d_range, 
                                         before = pa.before, 
                                         after = pa.after)
-        save_to_csv()
+        
         return
 
     elif (pa.query_param is not None):
@@ -269,12 +283,8 @@ def main():
         #   Part 2:
         #   after checking arguments are valid, pass arguments to search_news to build feed query
         ## 
-        get_news(lm = pa.lm, m = pa.m, d_range = d_range, before = pa.before, after = pa.after, q = pa.query_param)
-        ##
-        #   Part 3:
-        #   Save output to either DB or CSV
-        ## 
-        save_to_csv()
+        get_news_and_save(lm = pa.lm, m = pa.m, d_range = d_range, before = pa.before, after = pa.after, q = pa.query_param)
+        
         return
 
     else:
