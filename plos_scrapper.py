@@ -12,21 +12,27 @@ from os.path import basename
 import dateutil.relativedelta
 
 ## init a blank pandas df shell to append results to
-abs_df = pd.DataFrame(columns=['journal','published','title', 'abstract', 'source', 'label', 'query_date', 'query pattern'])
-query_date = datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
+abs_df = pd.DataFrame(columns=['source','published','title', 'abstract', 'type', 'scrapper', 'label', 'query_date', 'query_pattern'])
+query_date = datetime.now().strftime("%Y%m%dT%H%M%S")
 query_patttern = ""
-source = basename(__file__)
+scrapper = basename(__file__)
 label = "custom query"
+type = "academic:abstract"
 
 ##
 # save dataframe to output file
 ##
 def save_to_csv():
     global abs_df
-    save_csv = open("plos_output.csv","w",newline='',encoding='utf-8')
-    abs_df.to_csv('plos_output.csv')
+    global query_date
+
+    folder = "scrapper_output/"
+    filename = "output_" + query_date + ".csv"
+    save_csv = open(filename,"w",newline='',encoding='utf-8')
+    abs_df.to_csv(folder + filename)
     save_csv.close()
-    print("PLOS search results saved to 'plos_output.csv'")
+
+    print("PLOS search results saved to " + filename)
     return
 
 ##
@@ -42,17 +48,19 @@ def get_df():
 def parse_response_to_df(docs):
     global abs_df
     global label
-    global source
+    global scrapper
     global query_patttern
     global query_date
+    global type
     
     
     for article in docs:
         title = article['title']
-        journal = article['journal']
+        source = article['journal']
         published = article['publication_date']
         abstract = article['abstract']
-        df2 = pd.DataFrame([[journal, published, title, abstract, source, label, query_date, query_patttern]],columns=['journal','published','title', 'abstract', 'source', 'label', 'query_date', 'query pattern'])
+        df2 = pd.DataFrame([[source, published, title, abstract, type, scrapper, label, query_date, query_patttern]],
+                        columns=['source','published','title', 'abstract', 'type', 'scrapper', 'label', 'query_date', 'query_pattern'])
         abs_df = pd.concat([abs_df, df2], ignore_index=True)
 
     return
@@ -265,13 +273,8 @@ def main():
         d_range = True      ## both before and after dates were provided
 
 
-    ## TODO: read query from either csv or argument
     # Check if a search query has been provided
     if (pa.query_csv_file is not None):
-        ##
-        #   Part 2:
-        #   if 
-        ## 
         extract_abstracts_by_filequery(filename = pa.query_csv_file, 
                                         lm = pa.lm, 
                                         m = pa.m, 

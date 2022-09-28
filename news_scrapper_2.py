@@ -24,10 +24,14 @@ abstract = "null"
 ##
 def save_to_csv():
     global news_df
-    save_csv = open("gnews_output.csv","w",newline='',encoding='utf-8')
-    news_df.to_csv('gnews_output.csv')
+    global query_date
+
+    folder = "scrapper_output/"
+    filename = "output_" + query_date + ".csv"
+    save_csv = open(filename,"w",newline='',encoding='utf-8')
+    news_df.to_csv(folder + filename)
     save_csv.close()
-    print("Google news search results saved to 'gnews_output.csv'")
+    print("Google news search results saved to " + filename)
     return
 
 ##
