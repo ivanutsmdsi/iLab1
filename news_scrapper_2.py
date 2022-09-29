@@ -3,6 +3,8 @@ import feedparser
 import pandas as pd
 import sys
 import time
+
+
 import csv
 from datetime import datetime
 from datetime import date
@@ -20,11 +22,13 @@ label = "custom query"
 type = "grey_lit:title"
 abstract = "null"
 
+
 ##
 # save dataframe to output file
 ##
 def save_to_csv():
     global news_df
+
     global query_date
 
     folder = "scrapper_output/"
@@ -32,6 +36,7 @@ def save_to_csv():
     news_df.to_csv(folder + filename)
 
     print("Google news search results saved to " + filename)
+
     return
 
 ##
@@ -52,6 +57,7 @@ def parse_feed_to_df(feed):
     global label
     global type
     global abstract
+
     
     # print('num of entries retrieved: ' + str(len(feed['entries']))) 
     
@@ -59,8 +65,10 @@ def parse_feed_to_df(feed):
         title = entry['title']
         source = entry['source']['title']
         published = entry['published']
+
         df2 = pd.DataFrame([[source, published, title, abstract, type, scrapper, label, query_date, query_patttern]],
                             columns=['source','published','title', 'abstract', 'type', 'scrapper', 'label', 'query_date', 'query_pattern'])
+
         news_df = pd.concat([news_df, df2], ignore_index=True)
 
     return
@@ -71,6 +79,7 @@ def parse_feed_to_df(feed):
 ##
 
 def get_feed(query, before, after):
+
     global query_patttern
     query = query.replace(" ", "%20")
     params = 'q=' + query + '+before:' + before + '+after:' + after
@@ -291,9 +300,6 @@ def main():
         print("Search query required.")
         return
 
-    
-
-    
 
 
 ## Execute main
