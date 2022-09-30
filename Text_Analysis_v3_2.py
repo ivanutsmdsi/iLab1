@@ -11,7 +11,6 @@
 # - output 2 - POS tag list
 # - output 3 - Sentitment score
 # - output 4 - bi-gram
-
 # %%
 # Library
 import pandas as pd
