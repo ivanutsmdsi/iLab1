@@ -1,16 +1,18 @@
 # %% [markdown]
-# Text_Analysis_v3.2
+# Text_Analysis_v4
 # Process
 # - read in and combine
 # - remove duplicate 
 # - create custom stoplist
 # - POS tag
+# - text distance
 # 
 # Outputs
 # - output 1 - custom stoplist 
 # - output 2 - POS tag list
 # - output 3 - Sentitment score
 # - output 4 - bi-gram
+# - output 5 - Text distance
 
 # %%
 # Library
@@ -36,11 +38,22 @@ from nltk.tokenize import sent_tokenize
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.feature_extraction.text import TfidfTransformer
 from sklearn.feature_extraction.text import TfidfVectorizer
+import gensim
+from gensim.models.phrases import Phrases, ENGLISH_CONNECTOR_WORDS #for text distance
+from gensim.models import Word2Vec
 
 # %%
-all_files = '1'
-raw_file_path='1'
-output_file_path='1'
+# clean variables
+path = []
+input_folder_=[]
+output_folder_ =[]
+format_=[]
+all_files = []
+raw_file_path=[]
+output_file_path=[]
+li = []
+df0=[]
+df=[]
 
 # %%
 # Read in raw .csvs from folder to df
@@ -63,7 +76,6 @@ print('========================================')
 
 # get list of all .csvs in the folder
 os.chdir(raw_file_path)
-##all_files = glob.glob(str(output_file_path) + '/*_big
 all_files = glob.glob(str(raw_file_path) + '/*.csv')
 print(f'.csv to read in : {all_files}')
 print('========================================')
@@ -72,14 +84,13 @@ print('========================================')
 # create blank df and read in all .csv in the folder
 print(f'Reading in .csv...')
 li = []
-
 for filename in all_files:
     df0 = pd.read_csv(filename, index_col=None, header = 0)
     li.append(df0)
 
 df0 = pd.concat(li,axis = 0, ignore_index = True)
 
-df0.head()
+#df0.head()
 print('========================================')
 
 # %%
@@ -93,22 +104,26 @@ df0['abstract'] = df0['abstract'].astype(str)
 
 print('Convert GMT datetime to Sydney datetime...')
 df0.rename(columns={ 'Unnamed: 0':'Origin_id'}, inplace=True)
-#df0['published']  = pd.to_datetime(df0['published']).dt.tz_convert('Australia/Sydney')
 p_format = "%Y-%m-%dT%H:%M:%SZ"
 g_format = "%a, %d %b %Y %H:%M:%S GMT"
 
 df0['published'] = pd.to_datetime(df0['published'], format = p_format, errors = "coerce").fillna(pd.to_datetime(df0['published'], format = g_format, errors = "coerce"))
+
+
 print('========================================')
 
 print(f'Total {df0.shape[0]} records with {df0.shape[1]} columns from the original input.')
-df0.head()
+#df0.head()
 print('========================================')
 
-
+# %%
 # remove duplicate by title and source columns
 df = df0.drop_duplicates(
   subset = ['title', 'source','abstract'],
   keep = 'last').reset_index(drop = True)
+df['year'] = df.published.dt.year
+df['month'] = df.published.dt.month
+df['yyymm'] = df.published.dt.to_period('M')
 print(f'Total {df0.shape[0]-df.shape[0]} duplicate records (same title & source & abstract) been removed.')
 
 print('========================================')
@@ -117,8 +132,6 @@ print('========================================')
 print('Creating index numbers in the combined df...')
 df['rec_id'] = np.arange(1, df.shape[0] + 1)
 
-print('df with rec_id')
-print(df.head())
 print('========================================')
 
 # %%
@@ -129,18 +142,16 @@ cust_stop = ['conclusions:', 'introduction:', 'methods:', 'purpose:', 'results:'
 stops.update(['br', 'href','\n'],cust_stop)
 
 # %%
-print(stops)
-
-# %%
 # clean columns for title and abstract
 ## ([^A-Za-z- \t\.]) <- keep alphabetical characters and hyphens, full stop
 ## ( - )   <- discard hyphen when it is on its own
+## to check df[df.custom_abstract.str.contains('._')]
 print('Removing numeric and symbols...')
 
-df['custom_title'] = df['title'].str.replace(r'\\n', '').replace(r'\!', '.').str.lower()
+df['custom_title'] = df['title'].str.replace(r'\\n', '').replace(r'\!', '.').replace(r'\._',' ').str.lower()
 df['custom_title'] = df['custom_title'].apply(lambda x: re.sub(r"([^A-Za-z- \t\.])|( - )", "", x))
 
-df['custom_abstract'] = df['abstract'].str.replace(r'\\n', '').replace(r'\!', '.').str.lower()
+df['custom_abstract'] = df['abstract'].str.replace(r'\\n', '').replace(r'\!', '.').replace(r'\._',' ').str.lower()
 df['custom_abstract'] = df['custom_abstract'].apply(lambda x: re.sub(r"([^A-Za-z- \t\.])|( - )", "", x))
 
 print('Removing stop words...')
@@ -260,25 +271,6 @@ df['custom_title'] = custom_title_2
 print('========================================')
 
 # %%
-print('========================================')
-
-print('Title Before and After Clean Comparison---')
-print('Before cleaning:')
-print(df['title'][0])
-print('========================================')
-print('After cleaning:')
-print(df['custom_title'][0])
-print('========================================')
-
-print('Abstractr Before and After Clean Comparison---')
-print('Before cleaning:')
-print(df['abstract'][4000])
-print('========================================')
-print('After cleaning:')
-print(df['custom_abstract'][4000])
-print('========================================')
-
-# %%
 ## output 1 A - stoplist for title, file save to 
 filename1a = '\\output_title_stop_words_'+ datetime.datetime.now().strftime("%Y%m%d")+'.csv'
 pd.DataFrame(list(stops_title)).to_csv(str(output_file_path)+ filename1a, index=True)
@@ -292,15 +284,12 @@ print (f'Stop words for abstract are saved as {str(output_file_path)+ filename1b
 print('========================================')
 
 # %%
+# POS taging
 # tokenize the text. preparing for POS tagging
 clean_title= df['custom_title'].tolist()
 clean_abstract= df['custom_abstract'].tolist()
-
-# %%
 stops_title = stops_title
 stops_abs = stops_abs
-stemmer = nltk.stem.PorterStemmer()
-lemmatizer = nltk.stem.WordNetLemmatizer()
 
 # %%
 ## functions to tokenize 
@@ -337,35 +326,6 @@ tokenize_sent_words_list_title = tokenize_wd(tokenize_sent_title)
 print('========================================')
 
 # %%
-print('Abstract Comparison---')
-print('Orginal Abstract:')
-print(df.abstract[4000])
-print('=======================================')
-
-print('Tokenise the sentence from Abastract:')
-print(tokenize_sent_abs[4000])
-print('=======================================')
-
-print('Tokenise words within the sentence from Abstract:')
-print(tokenize_sent_words_list_abs[4000])
-print('=======================================')
-
-# %%
-print('Title Before And After Tokenize Comparison---')
-print('Orginal Title:')
-print(df.title[4000])
-print('=======================================')
-
-print('Tokenise the sentence from Title:')
-print(tokenize_sent_title[4000])
-print('=======================================')
-
-print('Tokenise words within the sentence from Title:')
-print(tokenize_sent_words_list_title[4000])
-print('=======================================')
-
-# %%
-# POS tags
 # func: Remove row within df by cell value
 def filter_rows_by_values(df, col, values):
     return df[~df[col].isin(values)]
@@ -375,7 +335,7 @@ stemmer = nltk.stem.PorterStemmer()
 lemmatizer = nltk.stem.WordNetLemmatizer()
 
 # %%
-# Tag title - 1904 records = 15 secs
+# Tag title
 print('Tagging titles, this will take a while... A full list of the POS tags are in https://pythonexamples.org/nltk-pos-tagging/')
 li_tokens_title=[]
 for i in range(len(tokenize_sent_words_list_title)):
@@ -389,7 +349,7 @@ li_pos_title=[]
 for i in range(len(tokenize_sent_words_list_title)):
     for j in range(len(tokenize_sent_words_list_title[i])):
             for tok, tag in nltk.pos_tag(tokenize_sent_words_list_title[i][j]):
-                li_pos_title.append((j,i,tok, tag)) # x, rec_id, word,stem, lem   
+                li_pos_title.append((j,i,tok, tag))   
 
 print('=======================================')
 
@@ -402,22 +362,12 @@ df_title_pos = pd.merge(df_title_pos_0, df_title_pos_1,  how='left', left_on=['r
 df_title_pos.rec_id = df_title_pos.rec_id+1
 print('=======================================')
 
-
+# drop unused column and text value
 df_title_pos = df_title_pos.drop(columns = ['x_x','x_y'])
 df_title_pos = filter_rows_by_values(df_title_pos, "title_word", ["[","]","'",".","nan"])
 
-print('Title Before and After Tag Comparison---')
-print('Sample untagged title record:')
-print(list(df.title[df['rec_id']==900]))
-print('=============================')
-
-print('Sample tagged title record:')
-print(df_title_pos[df_title_pos['rec_id']==900])
-print('=======================================')
-df_title_pos.shape #(42742, 5)
-
 # %%
-# Tag abstract - 1904 records = 3 mins
+# Tag abstract 
 print('Tagging abstracts, this will take a while... A full list of the POS tags are in https://pythonexamples.org/nltk-pos-tagging/')
 li_tokens_abs=[]
 for i in range(len(tokenize_sent_words_list_abs)):
@@ -431,7 +381,7 @@ li_pos_abs=[]
 for i in range(len(tokenize_sent_words_list_abs)):
     for j in range(len(tokenize_sent_words_list_abs[i])):
             for tok, tag in nltk.pos_tag(tokenize_sent_words_list_abs[i][j]):
-                li_pos_abs.append((j,i,tok, tag)) # x, rec_id, word,stem, lem   
+                li_pos_abs.append((j,i,tok, tag))  
 
 
 print('Converting the tagged list to df...')
@@ -445,20 +395,9 @@ df_abs_pos = pd.merge(df_abs_pos_0, df_abs_pos_1,  how='left', left_on=['rec_id'
 df_abs_pos.rec_id = df_abs_pos.rec_id+1
 print('=======================================')
 
-
+# drop unused column and text value
 df_abs_pos = df_abs_pos.drop(columns = ['x_x','x_y'])
 df_abs_pos = filter_rows_by_values(df_abs_pos, "abstract_word", ["[","]","'",".","nan"])
-
-print('Abstracts Before and After Tag Comparison---')
-print('Sample untagged abstract record:')
-print(list(df.abstract[df['rec_id']==4000]))
-print('=============================')
-
-print('Sample tagged abstract record:')
-print(df_abs_pos[df_abs_pos['rec_id']==4000])
-print('=======================================')
-df_abs_pos.shape #(247953, 5)
-
 
 # %%
 # sace file as .csv
@@ -475,16 +414,8 @@ print('========================================')
 
 # %%
 # Sentiment Scoring
-
-# %%
-#clean_title= df['custom_title'].tolist()
-#clean_abstract= df['custom_abstract'].tolist()
 lst_title = list(np.arange(0,int(len(clean_title))))
 lst_abs = list(np.arange(0,int(len(clean_abstract))))
-
-
-# %%
-df.head()
 
 # %%
 # Add in sentiment score per entry of title
@@ -503,12 +434,6 @@ print('========================================')
 
 df['sentiment_score_title'] = sentiment_score_title
 df['sentiment_score_abstract'] = sentiment_score_abs
-df['year'] = df.published.dt.year
-df['month'] = df.published.dt.month
-
-print('Sentiment result sample:')
-print(df[df['rec_id']==900])
-print('========================================')
 
 # %%
 print('========================================')
@@ -519,30 +444,37 @@ print (f'Extraction with sentiment score are saved as {str(output_file_path)+ fi
 print('========================================')
 
 # %%
-#bi-gram
-print('Before split title to n-grams:')
-print(df.title[df['rec_id']==4000])
-
-# %%
+# bi-gram extraction
 print('========================================')
-# split title as bigrams
 n = 2
 
 print('Split title to bi-grams...')
+df['custom_title'] = df['custom_title'].replace('- ', ' ', regex=True).replace('\._ ', ' ', regex=True).tolist()
 df['title_bigrams'] = df['custom_title'].str.replace(r'\[|\]','', regex=True).str.split().apply(lambda x: list(map(' '.join, nltk.ngrams(x, n=n))))
 
 new_df_title = pd.DataFrame(df.title_bigrams.values.tolist(), index=df.rec_id).stack()
 new_df_title = new_df_title.reset_index([0, 'rec_id'])
 new_df_title.columns = ['rec_id', 'title_bigrams']
-new_df_title[new_df_title['rec_id']==4000]
-
+new_df_title['title_bigrams']=new_df_title['title_bigrams'].apply(lambda x: re.sub(r"([^A-Za-z- \t])|( - )", "", x))
+new_df_title = pd.merge(new_df_title, df[['rec_id','label','yyymm']],  how='left', left_on=['rec_id'], right_on = ['rec_id'])
 
 # %%
+new_df_title
+
+# %%
+# split abstract as bigrams
+print('========================================')
 print('Split abstract to bi-grams...')
-df['abstract_bigrams'] = df['custom_abstract'].str.replace(r'\[|\]','', regex=True).str.split().apply(lambda x: list(map(' '.join, nltk.ngrams(x, n=n))))
+df['custom_abstract'] = df['custom_abstract'].replace('- ', ' ', regex=True)
+df['abstract_bigrams0'] = df['custom_abstract'].str.replace(r'\[|\]','', regex=True).str.split().apply(lambda x: list(map(' '.join, nltk.ngrams(x, n=n))))
+df['abstract_bigrams'] = df['abstract_bigrams0'].replace(r'\.|\._ ', '')
 new_df_abstract = pd.DataFrame(df.abstract_bigrams.values.tolist(), index=df.rec_id).stack()
 new_df_abstract = new_df_abstract.reset_index([0, 'rec_id'])
 new_df_abstract.columns = ['rec_id', 'abstract_bigrams']
+new_df_abstract['abstract_bigrams']=new_df_abstract['abstract_bigrams'].apply(lambda x: re.sub(r"([^A-Za-z- \t])|( - )", "", x))
+new_df_abstract = pd.merge(new_df_abstract, df[['rec_id','label','yyymm']],  how='left', left_on=['rec_id'], right_on = ['rec_id'])
+
+# %%
 new_df_abstract
 
 # %%
@@ -556,6 +488,187 @@ print('========================================')
 filename4b = '\\output_abstract_bigrams_'+ datetime.datetime.now().strftime("%Y%m%d")+'.csv'
 pd.DataFrame(new_df_abstract).to_csv(str(output_file_path)+ filename4b, index=True)
 print (f'Abstract bigrames are saved as {str(output_file_path)+ filename4b}.')
+print('========================================')
+
+# %%
+# Text distance 
+## compare between label/industry
+
+li_all_labels = df['label'].unique().tolist()
+#li_all_labels.remove(np.nan)
+print(f'Total {len(li_all_labels)} industries:{li_all_labels}.')
+
+# %%
+def custom_split_lists(df_col_keep,df_col_label, label_list,sufix_name):
+    for i in range(len(label_list)):
+     globals()[f'clean_{sufix_name}_{label_list[i]}'] = df_col_keep[df_col_label==label_list[i]].tolist()
+     globals()[f'ls_{sufix_name}_{label_list[i]}']  = list(np.arange(0,int(len(df_col_keep[df_col_label==label_list[i]].tolist()))))
+     
+    print(f'Created {len(label_list)*2} lists from "lable" column: clean_{sufix_name}_{label_list[0]} and clean_{sufix_name}_{label_list[1]} and ls_{sufix_name}_{label_list[0]} and ls_{sufix_name}_{label_list[1]}.')     
+
+# %%
+# list to search from - clean df
+print(f'Split lists by industry/label')
+
+print(custom_split_lists(df['custom_title'],df['label'],li_all_labels,'custom_title'))
+
+print('========================================')
+
+print(custom_split_lists(df['custom_abstract'],df['label'],li_all_labels,'custom_abstract'))
+print('========================================')
+
+# %%
+# list to search for - bi-gram
+custom_split_lists(new_df_title['title_bigrams'],new_df_title['label'],li_all_labels,'bigram_title')
+print('========================================')
+
+custom_split_lists(new_df_abstract['abstract_bigrams'],new_df_abstract['label'],li_all_labels,'bigram_abstract')
+print('========================================')
+
+# %%
+# create bigram models base on the clean title records construction
+tokenized_title_list_construction = [nltk.word_tokenize(sent) for sent in clean_custom_title_construction]
+phrase_model_title_li_construction = Phrases(tokenized_title_list_construction , min_count=1, threshold=1, connector_words=ENGLISH_CONNECTOR_WORDS)
+
+
+# %%
+# create bigram models base on the clean abstract records constraction
+tokenized_abstract_list_construction = [nltk.word_tokenize(sent) for sent in clean_custom_abstract_construction]
+phrase_model_abstract_li_construction = Phrases(tokenized_abstract_list_construction , min_count=1, threshold=1, connector_words=ENGLISH_CONNECTOR_WORDS)
+
+# %%
+# create bigram models base on the clean title records aged_care
+tokenized_title_list_aged_care = [nltk.word_tokenize(sent) for sent in clean_custom_title_aged_care]
+phrase_model_title_li_aged_care = Phrases(tokenized_title_list_aged_care , min_count=1, threshold=1, connector_words=ENGLISH_CONNECTOR_WORDS)
+
+
+# %%
+# create bigram models base on the clean abstract records constraction
+tokenized_abstract_list_aged_care = [nltk.word_tokenize(sent) for sent in clean_custom_abstract_aged_care]
+phrase_model_abstract_li_aged_care = Phrases(tokenized_abstract_list_aged_care , min_count=1, threshold=1, connector_words=ENGLISH_CONNECTOR_WORDS)
+
+# %%
+# Use the bi-gram model to create a list of bi-gram work from the cleaned title df
+li_title_phrase_construction =[]
+for phrase in phrase_model_title_li_construction[tokenized_title_list_construction]:
+   li_title_phrase_construction.append(phrase)
+
+# %%
+li_abstract_phrase_construction =[]
+for phrase in phrase_model_abstract_li_construction[tokenized_abstract_list_construction]:
+   li_abstract_phrase_construction.append(phrase)
+
+# %%
+li_title_phrase_aged_care =[]
+for phrase in phrase_model_title_li_aged_care[tokenized_title_list_aged_care]:
+   li_title_phrase_aged_care.append(phrase)
+
+# %%
+li_abstract_phrase_aged_care =[]
+for phrase in phrase_model_abstract_li_aged_care[tokenized_abstract_list_aged_care]:
+   li_abstract_phrase_aged_care.append(phrase)
+
+# %%
+# Apply generic word2vec model to the bi-gram tokenized cleaned title df
+print('Applying generic word2vec model to the title construction...')
+word2vec_model_title_construction = gensim.models.Word2Vec(li_title_phrase_construction,min_count=5)
+
+# %%
+print('Applying generic word2vec model to the abstract construction...')
+word2vec_model_abstract_construction = gensim.models.Word2Vec(li_abstract_phrase_construction,min_count=5)
+
+# %%
+print('Applying generic word2vec model to the title age_care...')
+word2vec_model_title_aged_care = gensim.models.Word2Vec(li_title_phrase_aged_care,min_count=5)
+
+# %%
+print('Applying generic word2vec model to the abstract age_care...')
+word2vec_model_abstract_aged_care = gensim.models.Word2Vec(li_abstract_phrase_aged_care,min_count=5)
+print('=======================================')
+
+# %%
+# tokenized the bi-gram list to search for generated in the previous section
+tokenized_title_bi_list_construction = [nltk.word_tokenize(word) for word in clean_bigram_title_construction]
+
+# %%
+tokenized_abstract_bi_list_construction = [nltk.word_tokenize(word) for word in clean_bigram_abstract_construction]
+
+# %%
+tokenized_title_bi_list_aged_care = [nltk.word_tokenize(word) for word in clean_bigram_title_aged_care]
+
+# %%
+tokenized_abstract_bi_list_aged_care = [nltk.word_tokenize(word) for word in clean_bigram_abstract_aged_care]
+
+# %%
+# function to calculate similarity of the from the bi-gram list to cleaned df
+def cal_simularity_score(word2vecmodel, bigram_list):
+    li_similar_words=[]
+    li_most_similar_words_in_df=[]
+    for i in range(len(bigram_list)):
+        try:
+            words = word2vecmodel.wv.most_similar(bigram_list[i])
+            for word in words:
+                li_similar_words.append(word)
+                li_most_similar_words_in_df.append(((bigram_list[i][0]+' '+bigram_list[i][1])))
+        except Exception:
+            pass
+    df_similarity_0 = pd.DataFrame (li_similar_words, columns = ['most_similar_word', 'score'])
+    df_similarity_1 = pd.DataFrame (li_most_similar_words_in_df, columns = ['bi_word'])
+    df_similarity = df_similarity_1.join(df_similarity_0)
+    return df_similarity
+
+# %%
+print('Calcualte distance between top bi-gram with the rest of the titles constraction...')
+df_title_similarity_construction = cal_simularity_score(word2vec_model_title_construction, tokenized_title_bi_list_construction)
+df_title_similarity_construction['industry'] = 'construction'
+df_title_similarity_construction['type'] = 'title'
+print('=======================================')
+
+# %%
+df_title_similarity_construction
+
+# %%
+print('Calcualte distance between top bi-gram with the rest of the abstract constraction...')
+df_abstract_similarity_construction = cal_simularity_score(word2vec_model_abstract_construction, tokenized_abstract_bi_list_construction)
+df_abstract_similarity_construction['industry'] = 'construction'
+df_abstract_similarity_construction['type'] = 'abstract'
+print('=======================================')
+
+# %%
+print('Calcualte distance between top bi-gram with the rest of the titles aged_care...')
+df_title_similarity_aged_care = cal_simularity_score(word2vec_model_title_aged_care, tokenized_title_bi_list_aged_care)
+df_title_similarity_aged_care['industry'] = 'aged_care'
+df_title_similarity_aged_care['type'] = 'title'
+print('=======================================')
+
+# %%
+print('Calcualte distance between top bi-gram with the rest of the abstract aged_care...')
+df_abstract_similarity_aged_care = cal_simularity_score(word2vec_model_abstract_aged_care, tokenized_abstract_bi_list_aged_care)
+df_abstract_similarity_aged_care['industry'] = 'aged_care'
+df_abstract_similarity_aged_care['type'] = 'abstract'
+print('=======================================')
+
+# %%
+dt_similarity_title = pd.concat([df_title_similarity_construction, df_title_similarity_aged_care], axis=0, ignore_index=True)
+dt_similarity_title['most_similar_word'] = dt_similarity_title['most_similar_word'].apply(lambda x: re.sub(r"\._|\_.", "", x))
+
+dt_similarity_abstract = pd.concat([df_abstract_similarity_construction, df_abstract_similarity_aged_care], axis=0, ignore_index=True)
+dt_similarity_abstract['most_similar_word'] = dt_similarity_abstract['most_similar_word'].apply(lambda x: re.sub(r"\._|\_.", "", x))
+
+# %%
+dt_similarity_title
+
+# %%
+print('========================================')
+## output 5 - bigrams similarities, file save to 
+filename5a = '\\output_title_bigrams_similarities'+ datetime.datetime.now().strftime("%Y%m%d")+'.csv'
+pd.DataFrame(dt_similarity_title).to_csv(str(output_file_path)+ filename5a, index=True)
+print (f'Title bigrames are saved as {str(output_file_path)+ filename5a}.')
+print('========================================')
+
+filename5b = '\\output_abstract_bigrams_similarities'+ datetime.datetime.now().strftime("%Y%m%d")+'.csv'
+pd.DataFrame(dt_similarity_abstract).to_csv(str(output_file_path)+ filename5b, index=True)
+print (f'Abstract bigrames are saved as {str(output_file_path)+ filename5b}.')
 print('========================================')
 
 # %%
@@ -578,6 +691,8 @@ print (f'4. Tagged abstracts are saved as {str(output_file_path)+ filename2b}.')
 print (f'5. Extraction with sentiment scores on both title and abstract are saved as {str(output_file_path)+ filename3}.')
 print (f'6. Bigrames - title are saved as {str(output_file_path)+ filename4a}.')
 print (f'7. Bigrames - abstract  are saved as {str(output_file_path)+ filename4b}.')
+print (f'8. Bigrames - title similarity  are saved as {str(output_file_path)+ filename5a}.')
+print (f'9. Bigrames - abstract similarity are saved as {str(output_file_path)+ filename5b}.')
 print('========================================')
 
 
