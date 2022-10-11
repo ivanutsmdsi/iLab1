@@ -73,6 +73,11 @@ def parse_feed_to_df(feed):
 def get_feed(query, before, after):
     global query_patttern
     query = query.replace(" ", "%20")
+
+    if not (isinstance(before, str)):
+        before = before.strftime("%Y-%m-%d")
+        after = after.strftime("%Y-%m-%d")
+
     params = 'q=' + query + '+before:' + before + '+after:' + after
     query_patttern = params
 
@@ -121,6 +126,9 @@ def get_news(q, lm = False, m = False, d_range = False, before = None, after = N
         ## search by months
         while(d_before >= after):
             print("Requesting search results from google news (" + str(c_month) + " of " + str(months) + ")...      ", end = '')
+            
+            
+
             get_news_by_month(d_before, d_after, q)
 
             ##go to the previous month
@@ -137,7 +145,8 @@ def get_news(q, lm = False, m = False, d_range = False, before = None, after = N
     return
 
 def get_news_by_month(b, a, q):
-        feed = get_feed(query = q, before = b, after = a)   ## Execute one get request
+        
+        feed = get_feed(query = q, before = b, after = a)                           ## Execute one get request
         parse_feed_to_df(feed)                                                      ## parse feed into news_df
 
 ##

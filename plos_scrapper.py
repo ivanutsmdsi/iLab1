@@ -71,7 +71,11 @@ def parse_response_to_df(docs):
 
 def get_plos_results(query, before, after,start_row = 1):
     global query_patttern
-    # (publication_date:[2022-08-01T00:00:00Z TO 2022-08-31T23:59:59Z]) AND (construction+health+safety)
+    
+    if not (isinstance(before, str)):
+        before = before.strftime("%Y-%m-%d")
+        after = after.strftime("%Y-%m-%d")
+    
     pub_param = '(publication_date:[' + after + 'T00:00:00Z' + ' TO ' + before + 'T00:00:00Z' + '])'
     join_param = ' AND '
     query_param = '(' + query + ')' + join_param + pub_param
