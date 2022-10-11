@@ -19,6 +19,7 @@ scrapper = basename(__file__)
 label = "custom query"
 type = "academic:abstract"
 
+
 ##
 # save dataframe to output file
 ##
@@ -54,6 +55,7 @@ def parse_response_to_df(docs):
     
     for article in docs:
         title = article['title']
+
         source = article['journal']
         published = article['publication_date']
         abstract = article['abstract']
@@ -70,12 +72,18 @@ def parse_response_to_df(docs):
 ##
 
 def get_plos_results(query, before, after,start_row = 1):
+
     global query_patttern
+<<<<<<< HEAD
     
     if not (isinstance(before, str)):
         before = before.strftime("%Y-%m-%d")
         after = after.strftime("%Y-%m-%d")
     
+=======
+
+    # (publication_date:[2022-08-01T00:00:00Z TO 2022-08-31T23:59:59Z]) AND (construction+health+safety)
+>>>>>>> e65937a43be35e9d4c74767f02f96d6b59052fb0
     pub_param = '(publication_date:[' + after + 'T00:00:00Z' + ' TO ' + before + 'T00:00:00Z' + '])'
     join_param = ' AND '
     query_param = '(' + query + ')' + join_param + pub_param
@@ -192,7 +200,6 @@ def get_curr_month(date = date.today()):
 
     return {'start': str(start), 'end': str(end)}
 
-
 ##
 #   read search query from csv file
 #
@@ -243,6 +250,7 @@ def main():
     #   -csv    save results to csv file                    || acts as default if no save option set (TODO: apply db save as default)
     args = sys.argv[1:]                                     ## replace sys.argv with argparse
     d_range = False                                         ## flag for search by date range
+
     global query_patttern
 
     ## collect arguments
@@ -314,7 +322,6 @@ def main():
         print("Search query required.")
         return
 
-    
 
 ## Execute main
 if __name__ == "__main__":
