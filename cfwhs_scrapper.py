@@ -1,5 +1,7 @@
 import argparse
 import sys
+import time
+import runpy
 from os.path import exists
 from datetime import datetime
 from plos_scrapper import extract_abstracts_by_filequery as plos_scrapper_query_csv
@@ -96,17 +98,21 @@ def main():
                                         before = pa.before, 
                                         after = pa.after)
 
+        time.sleep(2)
+        runpy.run_path("text_analysis_v4.py")
         return
 
     elif (pa.query_param is not None):
         gnews_scrapper_query(lm = pa.lm, m = pa.m, d_range = d_range, before = pa.before, after = pa.after, q = pa.query_param)
         plos_scrapper_query(lm = pa.lm, m = pa.m, d_range = d_range, before = pa.before, after = pa.after, q = pa.query_param)
+
+        time.sleep(2)
+        runpy.run_path("text_analysis_v4.py")
         return
 
     else:
         print("Search query required.")
         return
-
 
     return
 
