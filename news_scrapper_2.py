@@ -31,7 +31,7 @@ def save_to_csv():
 
     global query_date
 
-    folder = "scrapper_output/"
+    folder = "output_raw/"
     filename = "output_" + query_date + ".csv"
     news_df.to_csv(folder + filename)
 

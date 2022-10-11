@@ -27,7 +27,7 @@ def save_to_csv():
     global abs_df
     global query_date
 
-    folder = "scrapper_output/"
+    folder = "output_raw/"
     filename = "output_" + query_date + ".csv"
     abs_df.to_csv(folder + filename)
 
@@ -74,16 +74,11 @@ def parse_response_to_df(docs):
 def get_plos_results(query, before, after,start_row = 1):
 
     global query_patttern
-<<<<<<< HEAD
     
     if not (isinstance(before, str)):
         before = before.strftime("%Y-%m-%d")
         after = after.strftime("%Y-%m-%d")
     
-=======
-
-    # (publication_date:[2022-08-01T00:00:00Z TO 2022-08-31T23:59:59Z]) AND (construction+health+safety)
->>>>>>> e65937a43be35e9d4c74767f02f96d6b59052fb0
     pub_param = '(publication_date:[' + after + 'T00:00:00Z' + ' TO ' + before + 'T00:00:00Z' + '])'
     join_param = ' AND '
     query_param = '(' + query + ')' + join_param + pub_param
